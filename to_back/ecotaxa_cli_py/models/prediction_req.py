@@ -39,7 +39,8 @@ class PredictionReq(object):
         'features': 'list[str]',
         'categories': 'list[int]',
         'use_scn': 'bool',
-        'pre_mapping': 'dict(str, int)'
+        'pre_mapping': 'dict(str, int)',
+        'test_fraction': 'float'
     }
 
     attribute_map = {
@@ -49,10 +50,11 @@ class PredictionReq(object):
         'features': 'features',
         'categories': 'categories',
         'use_scn': 'use_scn',
-        'pre_mapping': 'pre_mapping'
+        'pre_mapping': 'pre_mapping',
+        'test_fraction': 'test_fraction'
     }
 
-    def __init__(self, project_id=None, source_project_ids=None, learning_limit=None, features=None, categories=None, use_scn=False, pre_mapping=None, local_vars_configuration=None):  # noqa: E501
+    def __init__(self, project_id=None, source_project_ids=None, learning_limit=None, features=None, categories=None, use_scn=False, pre_mapping=None, test_fraction=0.0, local_vars_configuration=None):  # noqa: E501
         """PredictionReq - a model defined in OpenAPI"""  # noqa: E501
         if local_vars_configuration is None:
             local_vars_configuration = Configuration()
@@ -65,6 +67,7 @@ class PredictionReq(object):
         self._categories = None
         self._use_scn = None
         self._pre_mapping = None
+        self._test_fraction = None
         self.discriminator = None
 
         self.project_id = project_id
@@ -75,6 +78,8 @@ class PredictionReq(object):
         if use_scn is not None:
             self.use_scn = use_scn
         self.pre_mapping = pre_mapping
+        if test_fraction is not None:
+            self.test_fraction = test_fraction
 
     @property
     def project_id(self):
@@ -246,6 +251,29 @@ class PredictionReq(object):
             raise ValueError("Invalid value for `pre_mapping`, must not be `None`")  # noqa: E501
 
         self._pre_mapping = pre_mapping
+
+    @property
+    def test_fraction(self):
+        """Gets the test_fraction of this PredictionReq.  # noqa: E501
+
+        When set (>0), this fraction of the learning set is held out, per category, to evaluate the classifier before it's used for real.  # noqa: E501
+
+        :return: The test_fraction of this PredictionReq.  # noqa: E501
+        :rtype: float
+        """
+        return self._test_fraction
+
+    @test_fraction.setter
+    def test_fraction(self, test_fraction):
+        """Sets the test_fraction of this PredictionReq.
+
+        When set (>0), this fraction of the learning set is held out, per category, to evaluate the classifier before it's used for real.  # noqa: E501
+
+        :param test_fraction: The test_fraction of this PredictionReq.  # noqa: E501
+        :type: float
+        """
+
+        self._test_fraction = test_fraction
 
     def to_dict(self):
         """Returns the model properties as a dict"""

@@ -185,10 +185,61 @@ class PredictionJob(Job):
         time.sleep(1)
         # TODO: Remove the commented, but for now we have trace information inside
         # DoTaskClean(self.task.id)
-        ret = str(job.result) + "<br>"
+        result = job.result or {}
+        rowcount = result.get("rowcount")
+        ret = "<p>{0} object(s) classified.</p>".format(rowcount) if rowcount is not None else ""
+        evaluation = result.get("evaluation")
+        if evaluation:
+            ret += cls.RenderEvaluation(evaluation)
         ret += """<a href='/prj/{0}' class='btn btn-primary btn-sm'  role=button>
         Go to Manual Classification Screen</a> """.format(prj_id)
         return ret
+
+    @classmethod
+    def RenderEvaluation(cls, evaluation: dict) -> str:
+        overall = evaluation.get("overall_accuracy")
+        macro = evaluation.get("macro_accuracy")
+        per_taxon = evaluation.get("per_taxon") or []
+        excluded = evaluation.get("excluded_categories") or []
+        note = evaluation.get("note")
+
+        if not per_taxon:
+            msg = note or "Not enough data to evaluate."
+            return "<p><b>Evaluation:</b> {0}</p>".format(XSSEscape(msg))
+
+        rows = "".join(
+            """<tr><td>{0}</td><td>{1}</td><td>{2}</td><td>{3:.1f}%</td></tr>""".format(
+                XSSEscape(r["name"]), r["support"], r["correct"], r["accuracy"] * 100
+            )
+            for r in per_taxon
+        )
+        excluded_note = ""
+        if excluded:
+            excluded_note = (
+                "<p><small>{0} categorie(s) had too few validated objects to be "
+                "evaluated (still used for training): {1}</small></p>".format(
+                    len(excluded), ", ".join(str(c) for c in excluded)
+                )
+            )
+        return """
+        <div style="text-align:left; margin: 1em 0;">
+          <h4>Held-out test evaluation</h4>
+          <p><b>Overall accuracy: {overall:.1f}%</b> &nbsp; (macro-average: {macro:.1f}%,
+          test size: {test_size}, train size: {train_size})</p>
+          <table class="table table-striped table-condensed" style="max-width:600px">
+            <thead><tr><th>Taxon</th><th>Support</th><th>Correct</th><th>Accuracy</th></tr></thead>
+            <tbody>{rows}</tbody>
+          </table>
+          {excluded_note}
+        </div>
+        """.format(
+            overall=(overall or 0) * 100,
+            macro=(macro or 0) * 100,
+            test_size=evaluation.get("test_size", 0),
+            train_size=evaluation.get("train_size", 0),
+            rows=rows,
+            excluded_note=excluded_note,
+        )
 
     #################################################################################################
 
@@ -196,7 +247,8 @@ class PredictionJob(Job):
     def validate_task(cls):
         target_prj, filters_html = cls.get_target_project()
 
-        src_prj_ids, categories, learning_limit, pre_mapping, obj_vars, use_scn = cls.get_posted_task_params()
+        src_prj_ids, categories, learning_limit, pre_mapping, obj_vars, use_scn, test_fraction = \
+            cls.get_posted_task_params()
 
         # Check a bit
         errors = []
@@ -225,7 +277,8 @@ class PredictionJob(Job):
             sav = {'critvar': gvp("CritVar"),
                    'baseproject': gvp("src"),
                    'seltaxo': gvp("Taxo"),
-                   'posttaxomapping': gvp("PostTaxoMapping")}
+                   'posttaxomapping': gvp("PostTaxoMapping"),
+                   'testfraction': gvp("testfraction", "0")}
             # Update project classification settings
             with ApiClient(ProjectsApi, request) as api:
                 api.set_project_predict_settings(project_id=target_prj.projid,
@@ -241,7 +294,8 @@ class PredictionJob(Job):
         filters = {}
         cls._extract_filters_from_url(filters, target_prj)
 
-        src_prj_ids, categories, learning_limit, pre_mapping, obj_vars, use_scn = cls.get_posted_task_params()
+        src_prj_ids, categories, learning_limit, pre_mapping, obj_vars, use_scn, test_fraction = \
+            cls.get_posted_task_params()
 
         # Prepare back-end call
         req = PredictionReq(project_id=target_prj.projid,
@@ -250,7 +304,8 @@ class PredictionJob(Job):
                             categories=categories,
                             features=obj_vars,
                             use_scn=use_scn,
-                            pre_mapping=pre_mapping)
+                            pre_mapping=pre_mapping,
+                            test_fraction=test_fraction)
         # Call and redirect
         with ApiClient(ObjectsApi, request) as api:
             rsp: PredictionRsp = api.predict_object_set({'filters': filters,
@@ -278,7 +333,9 @@ class PredictionJob(Job):
         else:
             pre_map_txt = []
         pre_mapping = {int(from_): int(to) for from_, to in pre_map_txt}
-        return src_prj_ids, categories, learning_limit, pre_mapping, obj_vars, use_scn
+        # Posted as a 0-50 percentage, PredictionReq wants a 0.0-0.5 fraction
+        test_fraction = int(gvp("testfraction", "0") or "0") / 100.0
+        return src_prj_ids, categories, learning_limit, pre_mapping, obj_vars, use_scn, test_fraction
 
     @staticmethod
     def api_read_accessible_projects(instrument_filter, title_filter):
@@ -420,7 +477,8 @@ class PredictionJob(Job):
                   "taxo": ",".join((x[4:] for x in request.form
                                     if x[0:4] == "taxo" and x[0:6] != "taxolb")),
                   "pre_mapping": ",".join((x[6:] + ":" + gvp(x) for x in request.form
-                                           if x[0:6] == "taxolb"))
+                                           if x[0:6] == "taxolb")),
+                  "testfraction": prev_settings.get("testfraction", "0"),
                   }
 
         # Determination des criteres/variables utilisées par l'algo de learning
