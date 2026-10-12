@@ -10,7 +10,7 @@ from appli.utils import ApiClient, DecodeEqualList, EncodeEqualList
 from to_back.ecotaxa_cli_py import ApiException, ObjectsApi, ObjectSetQueryRsp, ProjectSetColumnStatsModel, \
     ProjectTaxoStatsModel, PredictionReq, PredictionRsp
 from to_back.ecotaxa_cli_py.api import ProjectsApi, TaxonomyTreeApi
-from to_back.ecotaxa_cli_py.models import TaxonModel, ProjectModel, JobModel
+from to_back.ecotaxa_cli_py.models import TaxonModel, ProjectModel, JobModel, ModelSummary
 
 
 class PredictionJob(Job):
@@ -219,7 +219,7 @@ class PredictionJob(Job):
         # Scoped to this job's own model, not every model in the project, so the chart
         # reads as "this model's versions".
         with ApiClient(ProjectsApi, request) as api:
-            history = api.get_training_history(prj_id, model_name=model_name)
+            history = [h.to_dict() for h in api.get_training_history(prj_id, model_name=model_name)]
         ret += render_template('jobs/_training_history_chart.html',
                               history=history, chart_id="final")
         ret += """<a href='/prj/{0}' class='btn btn-primary btn-sm'  role=button>
@@ -468,7 +468,7 @@ class PredictionJob(Job):
         else:
             with ApiClient(ProjectsApi, request) as api:
                 existing_models = api.get_trained_models(target_prj.projid)
-            if any(m["name"] == model_name for m in existing_models):
+            if any(m.name == model_name for m in existing_models):
                 errors.append(
                     "Model name '%s' is already used in this project -- pick another, "
                     "or use Re-train instead" % model_name)
@@ -786,15 +786,15 @@ class PredictionJob(Job):
                                models=models)
 
     @classmethod
-    def _find_model(cls, target_prj: ProjectModel, model_name: str) -> Optional[dict]:
+    def _find_model(cls, target_prj: ProjectModel, model_name: str) -> Optional[ModelSummary]:
         with ApiClient(ProjectsApi, request) as api:
             models = api.get_trained_models(target_prj.projid)
-        return next((m for m in models if m["name"] == model_name), None)
+        return next((m for m in models if m.name == model_name), None)
 
     @classmethod
-    def _retrain_blocker(cls, target_prj: ProjectModel, model: dict) -> Optional[str]:
+    def _retrain_blocker(cls, target_prj: ProjectModel, model: ModelSummary) -> Optional[str]:
         """ None if a retrain can proceed, else an explanatory message. """
-        config = model["config"]
+        config = model.config
         # 1. Has more been validated (in the locked source projects/categories) since the
         # model's last training? Reuses the same stats call categories_config_page() uses.
         src_ids_str = ",".join(str(x) for x in config["source_project_ids"])
@@ -805,12 +805,12 @@ class PredictionJob(Job):
             a_stat.nb_validated for a_stat in stats
             if a_stat.used_taxa and a_stat.used_taxa[0] in categories and a_stat.nb_validated
         )
-        last_size = model.get("learning_set_size") or 0
+        last_size = model.learning_set_size or 0
         if current_validated <= last_size:
             return ("No new validated objects since this model's last training on {0} "
                     "(still {1} validated, matching its source projects/categories). "
                     "Validate more objects before re-training.").format(
-                model.get("training_start", "?"), current_validated)
+                model.training_start or "?", current_validated)
         # 2. Are there objects to actually classify right now?
         filters: Dict[str, str] = {}
         cls._extract_filters_from_url(filters, target_prj)
@@ -833,7 +833,7 @@ class PredictionJob(Job):
             return cls.workflow_start_page()
         blocked_reason = cls._retrain_blocker(target_prj, model)
         with ApiClient(ProjectsApi, request) as api:
-            history = api.get_training_history(target_prj.projid, model_name=model_name)
+            history = [h.to_dict() for h in api.get_training_history(target_prj.projid, model_name=model_name)]
         # Held-out evaluation (table + per-taxon bar chart) for the model's current
         # (last-trained) version, so you can see how it's doing before deciding to
         # re-train it -- same rendering as the job monitor page for that training.
@@ -861,7 +861,7 @@ class PredictionJob(Job):
             flash(blocked_reason, "error")
             return cls.retrain_confirm_page(model_name)
 
-        config = model["config"]
+        config = model.config
         filters: Dict[str, str] = {}
         cls._extract_filters_from_url(filters, target_prj)
         req = PredictionReq(project_id=target_prj.projid,

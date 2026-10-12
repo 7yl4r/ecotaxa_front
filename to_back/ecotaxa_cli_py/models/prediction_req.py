@@ -132,6 +132,12 @@ class PredictionReq(object):
         """
         if self.local_vars_configuration.client_side_validation and model_name is None:  # noqa: E501
             raise ValueError("Invalid value for `model_name`, must not be `None`")  # noqa: E501
+        if (self.local_vars_configuration.client_side_validation and
+                model_name is not None and len(model_name) > 120):
+            raise ValueError("Invalid value for `model_name`, length must be less than or equal to `120`")  # noqa: E501
+        if (self.local_vars_configuration.client_side_validation and
+                model_name is not None and len(model_name) < 1):
+            raise ValueError("Invalid value for `model_name`, length must be greater than or equal to `1`")  # noqa: E501
 
         self._model_name = model_name
 
@@ -285,7 +291,7 @@ class PredictionReq(object):
     def test_fraction(self):
         """Gets the test_fraction of this PredictionReq.  # noqa: E501
 
-        When set (>0), this fraction of the learning set is held out, per category, to evaluate the classifier before it's used for real.  # noqa: E501
+        When set (>0), this fraction of the learning set is held out, per category, to evaluate the classifier before it's used for real. The deployed classifier is still trained on the full learning set; this only affects the reported accuracy.  # noqa: E501
 
         :return: The test_fraction of this PredictionReq.  # noqa: E501
         :rtype: float
@@ -296,11 +302,17 @@ class PredictionReq(object):
     def test_fraction(self, test_fraction):
         """Sets the test_fraction of this PredictionReq.
 
-        When set (>0), this fraction of the learning set is held out, per category, to evaluate the classifier before it's used for real.  # noqa: E501
+        When set (>0), this fraction of the learning set is held out, per category, to evaluate the classifier before it's used for real. The deployed classifier is still trained on the full learning set; this only affects the reported accuracy.  # noqa: E501
 
         :param test_fraction: The test_fraction of this PredictionReq.  # noqa: E501
         :type: float
         """
+        if (self.local_vars_configuration.client_side_validation and
+                test_fraction is not None and test_fraction > 0.5):  # noqa: E501
+            raise ValueError("Invalid value for `test_fraction`, must be a value less than or equal to `0.5`")  # noqa: E501
+        if (self.local_vars_configuration.client_side_validation and
+                test_fraction is not None and test_fraction < 0.0):  # noqa: E501
+            raise ValueError("Invalid value for `test_fraction`, must be a value greater than or equal to `0.0`")  # noqa: E501
 
         self._test_fraction = test_fraction
 
