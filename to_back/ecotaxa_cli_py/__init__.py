@@ -101,6 +101,7 @@ from to_back.ecotaxa_cli_py.models.migrated_i_ds_rsp import MigratedIDsRsp
 from to_back.ecotaxa_cli_py.models.min_user_model import MinUserModel
 from to_back.ecotaxa_cli_py.models.minimal_collection_bo import MinimalCollectionBO
 from to_back.ecotaxa_cli_py.models.minimal_user_bo import MinimalUserBO
+from to_back.ecotaxa_cli_py.models.model_summary import ModelSummary
 from to_back.ecotaxa_cli_py.models.object_header_model import ObjectHeaderModel
 from to_back.ecotaxa_cli_py.models.object_model import ObjectModel
 from to_back.ecotaxa_cli_py.models.object_set_query_rsp import ObjectSetQueryRsp
@@ -145,6 +146,7 @@ from to_back.ecotaxa_cli_py.models.taxon_usage_model import TaxonUsageModel
 from to_back.ecotaxa_cli_py.models.taxonomy_recast_req import TaxonomyRecastReq
 from to_back.ecotaxa_cli_py.models.taxonomy_tree_status import TaxonomyTreeStatus
 from to_back.ecotaxa_cli_py.models.token_rsp import TokenRsp
+from to_back.ecotaxa_cli_py.models.training_history_entry import TrainingHistoryEntry
 from to_back.ecotaxa_cli_py.models.user_activate_req import UserActivateReq
 from to_back.ecotaxa_cli_py.models.user_activity import UserActivity
 from to_back.ecotaxa_cli_py.models.user_model_with_rights import UserModelWithRights

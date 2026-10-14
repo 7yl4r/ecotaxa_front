@@ -5258,6 +5258,120 @@
         ]
       }
     },
+    "/projects/{project_id}/training_history":{
+      "get":{
+        "tags":[
+          "projects"
+        ],
+        "summary":"Get Training History",
+        "description":"**Return the project's past evaluated trainings**, oldest first, i.e. the accuracy\nhistory of its classifier across versions -- one entry per Prediction job which was\nrun with a held-out test fraction > 0. Pass `model_name` to restrict to one named\nmodel's versions instead of every model in the project.\n\n🔒 Current user needs *at least Read* right on the project.",
+        "operationId":"get_training_history",
+        "security":[
+          {
+            "BearerOrCookieAuth":[]
+          }
+        ],
+        "parameters":[
+          {
+            "name":"project_id",
+            "in":"path",
+            "required":true,
+            "schema":{
+              "type":"integer",
+              "title":"Project Id"
+            }
+          },
+          {
+            "name":"model_name",
+            "in":"query",
+            "required":false,
+            "schema":{
+              "title":"Model Name",
+              "type":"string",
+              "nullable":true
+            }
+          }
+        ],
+        "responses":{
+          "200":{
+            "description":"Successful Response",
+            "content":{
+              "application/json":{
+                "schema":{
+                  "type":"array",
+                  "items":{
+                    "$ref":"#/components/schemas/TrainingHistoryEntry"
+                  },
+                  "title":"Response Get Training History"
+                }
+              }
+            }
+          },
+          "422":{
+            "description":"Validation Error",
+            "content":{
+              "application/json":{
+                "schema":{
+                  "$ref":"#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/models":{
+      "get":{
+        "tags":[
+          "projects"
+        ],
+        "summary":"Get Trained Models",
+        "description":"**Return the project's named models**, one summary per name (its locked recipe, latest\nversion's info, and version count) -- for the Prediction wizard's \"train new\" vs\n\"retrain existing\" entry page.\n\n🔒 Current user needs *at least Read* right on the project.",
+        "operationId":"get_trained_models",
+        "security":[
+          {
+            "BearerOrCookieAuth":[]
+          }
+        ],
+        "parameters":[
+          {
+            "name":"project_id",
+            "in":"path",
+            "required":true,
+            "schema":{
+              "type":"integer",
+              "title":"Project Id"
+            }
+          }
+        ],
+        "responses":{
+          "200":{
+            "description":"Successful Response",
+            "content":{
+              "application/json":{
+                "schema":{
+                  "type":"array",
+                  "items":{
+                    "$ref":"#/components/schemas/ModelSummary"
+                  },
+                  "title":"Response Get Trained Models"
+                }
+              }
+            }
+          },
+          "422":{
+            "description":"Validation Error",
+            "content":{
+              "application/json":{
+                "schema":{
+                  "$ref":"#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/object_set/predictions":{
       "post":{
         "tags":[
@@ -10024,6 +10138,60 @@
         "type":"object",
         "title":"MinimalUserBO"
       },
+      "ModelSummary":{
+        "properties":{
+          "name":{
+            "type":"string",
+            "title":"Name",
+            "description":"The model's name, as chosen when it was first trained."
+          },
+          "training_id":{
+            "type":"integer",
+            "title":"Latest training Id",
+            "description":"The most recent training operation for this model."
+          },
+          "training_start":{
+            "type":"string",
+            "format":"date-time",
+            "title":"Latest training start",
+            "description":"When the most recent version was trained."
+          },
+          "version_count":{
+            "type":"integer",
+            "title":"Version count",
+            "description":"How many times this model has been (re)trained."
+          },
+          "config":{
+            "additionalProperties":true,
+            "type":"object",
+            "title":"Config",
+            "description":"The locked recipe: source_project_ids, categories, features, learning_limit, use_scn, pre_mapping, test_fraction."
+          },
+          "learning_set_size":{
+            "title":"Learning set size",
+            "description":"Row count of the learning set at the latest version's training.",
+            "type":"integer",
+            "nullable":true
+          },
+          "evaluation":{
+            "title":"Latest evaluation",
+            "description":"Held-out test evaluation at the latest version, if one was run.",
+            "additionalProperties":true,
+            "type":"object",
+            "nullable":true
+          }
+        },
+        "type":"object",
+        "required":[
+          "name",
+          "training_id",
+          "training_start",
+          "version_count",
+          "config"
+        ],
+        "title":"ModelSummary",
+        "description":"A named, possibly multi-version, classifier in a project: its locked recipe and its\nlatest version's info. @see Training.model_name/config/learning_set_size."
+      },
       "ObjectHeaderModel":{
         "properties":{
           "classif_when":{
@@ -10642,6 +10810,13 @@
             "title":"Project Id",
             "description":"The destination project, of which objects will be predicted."
           },
+          "model_name":{
+            "type":"string",
+            "maxLength":120,
+            "minLength":1,
+            "title":"Model name",
+            "description":"Identifies this classifier across retrainings. Must be unique among this project's models when training a new one; when retraining, reuse the existing name so this becomes another version of it."
+          },
           "source_project_ids":{
             "items":{
               "type":"integer"
@@ -10688,11 +10863,20 @@
             "type":"object",
             "title":"Categories pre-mapping",
             "description":"Categories in keys become value one before launching the ML algorithm. Any unknown value is ignored."
+          },
+          "test_fraction":{
+            "type":"number",
+            "maximum":0.5,
+            "minimum":0.0,
+            "title":"Test set fraction",
+            "description":"When set (>0), this fraction of the learning set is held out, per category, to evaluate the classifier before it's used for real. The deployed classifier is still trained on the full learning set; this only affects the reported accuracy.",
+            "default":0.0
           }
         },
         "type":"object",
         "required":[
           "project_id",
+          "model_name",
           "source_project_ids",
           "features",
           "categories",
@@ -12674,6 +12858,41 @@
           "refresh_expires_in"
         ],
         "title":"Token response Model"
+      },
+      "TrainingHistoryEntry":{
+        "properties":{
+          "training_id":{
+            "type":"integer",
+            "title":"Training Id",
+            "description":"The training operation which produced this evaluation."
+          },
+          "training_start":{
+            "type":"string",
+            "format":"date-time",
+            "title":"Training start",
+            "description":"When this training/prediction job ran. Identifies the model version."
+          },
+          "model_name":{
+            "title":"Model name",
+            "description":"The named model this version belongs to, if any.",
+            "type":"string",
+            "nullable":true
+          },
+          "evaluation":{
+            "additionalProperties":true,
+            "type":"object",
+            "title":"Evaluation",
+            "description":"Held-out test split evaluation for this training: test_fraction, overall_accuracy, macro_accuracy, train_size, test_size, per_taxon, excluded_categories."
+          }
+        },
+        "type":"object",
+        "required":[
+          "training_id",
+          "training_start",
+          "evaluation"
+        ],
+        "title":"TrainingHistoryEntry",
+        "description":"One past, evaluated, training of a project's classifier -- i.e. one \"version\" of the\nmodel, identified by when it happened. @see Training DB model, GPUPredictForProject.evaluate_split."
       },
       "UserActivateReq":{
         "properties":{
