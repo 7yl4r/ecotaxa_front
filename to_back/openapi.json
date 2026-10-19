@@ -10811,11 +10811,12 @@
             "description":"The destination project, of which objects will be predicted."
           },
           "model_name":{
+            "title":"Model name",
+            "description":"Identifies this classifier across retrainings. Must be unique among this project's models when training a new one; when retraining, reuse the existing name so this becomes another version of it. When omitted, the training is not attached to any named model.",
             "type":"string",
             "maxLength":120,
             "minLength":1,
-            "title":"Model name",
-            "description":"Identifies this classifier across retrainings. Must be unique among this project's models when training a new one; when retraining, reuse the existing name so this becomes another version of it."
+            "nullable":true
           },
           "source_project_ids":{
             "items":{
@@ -10876,7 +10877,6 @@
         "type":"object",
         "required":[
           "project_id",
-          "model_name",
           "source_project_ids",
           "features",
           "categories",

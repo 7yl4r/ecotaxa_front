@@ -114,7 +114,7 @@ class PredictionReq(object):
     def model_name(self):
         """Gets the model_name of this PredictionReq.  # noqa: E501
 
-        Identifies this classifier across retrainings. Must be unique among this project's models when training a new one; when retraining, reuse the existing name so this becomes another version of it.  # noqa: E501
+        Identifies this classifier across retrainings. Must be unique among this project's models when training a new one; when retraining, reuse the existing name so this becomes another version of it. When omitted, the training is not attached to any named model.  # noqa: E501
 
         :return: The model_name of this PredictionReq.  # noqa: E501
         :rtype: str
@@ -125,13 +125,11 @@ class PredictionReq(object):
     def model_name(self, model_name):
         """Sets the model_name of this PredictionReq.
 
-        Identifies this classifier across retrainings. Must be unique among this project's models when training a new one; when retraining, reuse the existing name so this becomes another version of it.  # noqa: E501
+        Identifies this classifier across retrainings. Must be unique among this project's models when training a new one; when retraining, reuse the existing name so this becomes another version of it. When omitted, the training is not attached to any named model.  # noqa: E501
 
         :param model_name: The model_name of this PredictionReq.  # noqa: E501
         :type: str
         """
-        if self.local_vars_configuration.client_side_validation and model_name is None:  # noqa: E501
-            raise ValueError("Invalid value for `model_name`, must not be `None`")  # noqa: E501
         if (self.local_vars_configuration.client_side_validation and
                 model_name is not None and len(model_name) > 120):
             raise ValueError("Invalid value for `model_name`, length must be less than or equal to `120`")  # noqa: E501
